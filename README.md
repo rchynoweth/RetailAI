@@ -19,15 +19,15 @@ ITTM_ENDPOINT=<image to text api endpoint on Databricks model serving>
 To run the application locally please execute the following commands. 
 ```
 # Create environment 
-conda create -n productcopy python=3.10
+conda create -n retailai python=3.10
 
-conda activate productcopy
+conda activate retailai
 
 # install requirements 
 pip install -r requirements.txt
 
 # change working directory and run application
-cd productcopy
+cd RetailAI
 
-python run_app.py
+python src/app.py
 ```
