@@ -32,5 +32,12 @@ cd RetailAI
 python src/app.py
 ```
 <div style="text-align: center;">
-<video src="https://www.youtube.com/watch?v=z8s0S9FLTrw" controls="controls" style="max-width: 730px;"></video>
+<video src="https://github.com/rchynoweth/RetailAI/assets/79483287/e6011c0e-8bb7-41cb-b15b-779118034252" controls="controls" style="max-width: 730px;"></video>
 </div>
+
+
+
+
+
+
+
