@@ -77,7 +77,7 @@ def update_chat(n_clicks, n_submit, new_message, chat_history, file_name, file_c
     else : 
         metadata, img = determine_intent(chat_history=chat_history, file_content=None)
 
-    msg = new_message + f"<metadata>Please use the following in summarization. {metadata}</metadata>" if metadata is not None else new_message
+    msg = new_message + f"<metadata>{metadata}</metadata>" if metadata is not None else new_message
     # Add the user message to the client chat
     retail_llm.add_message(HumanMessage(msg))
 
