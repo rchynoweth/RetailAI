@@ -2,6 +2,7 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 
 
+
 index_layout = html.Div(
     [
 
@@ -57,7 +58,9 @@ index_layout = html.Div(
             multiple=False
         ),
         html.Div(id='output-image', style={'width': '100%', 'display': 'inline-block', 'textAlign': 'center', 'margin-top': '10px'}),
-# dcc.Graph(id='graph-content'),
-        dcc.Store(id="store-chat-history", data=[]),
+        dcc.Store(id="store-chat-history", data=[], storage_type='session'),
+        html.Div(id='page-load-trigger', style={'display': 'none'}),  # Hidden Div as a trigger
+        dcc.Location(id='url', refresh=False),  # Added this line
+
     ]
 )
