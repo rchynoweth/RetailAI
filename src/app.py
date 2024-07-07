@@ -83,9 +83,13 @@ def update_chat(n_clicks, n_submit, new_message, chat_history, file_name, file_c
     bot_message = retail_llm.send_chat(msg=new_message)
     retail_llm.add_message(bot_message)
 
+    image_list = os.listdir('./src/assets')
+    image_list.sort()
+    latest_image = image_list[-1]
+    logger.info("Display Image %s", latest_image)
     # Return updated chat history and forecast image
-    if os.path.isfile('src/assets/display.png'):
-        return chat_history, html.Img(src='/assets/display.png') 
+    if file_content is not None:
+        return chat_history, html.Img(src=f'/assets/{latest_image}') 
     else :
         return chat_history, None
 

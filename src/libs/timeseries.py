@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 
+from datetime import datetime
 
 
 from langchain.tools import BaseTool
@@ -54,10 +55,16 @@ class ForecastTool(BaseTool):
         # generate a forecast image
         logger.info("Generating image.")
         forecast_image = px.line(output_df, x='Date', y=['y', 'yhat','yhat_upper', 'yhat_lower'])
-        img_path = "src/assets/display.png"
+        img_path = f"src/assets/display_{get_current_timestamp()}.png"
         pio.write_image(forecast_image, img_path)
 
         return evaluate_forecasts(output_df)
+
+
+
+    def _arun(self):
+        return NotImplementedError
+    
     
 def evaluate_forecasts(pdf):
     """
@@ -81,5 +88,12 @@ def evaluate_forecasts(pdf):
     results = f"The forecast has been generated and displayed. Here is some information for the LLM. We have observed that there are {num_upper_alerts} occurences where the y value was above the upper threshold (yhat_upper) and {num_lower_alerts} occurrences where the y value was below the lower threshold (yhat_lower). Here are evaluation metrics for the forecast. Mean Average Error:{mae}, Mean Squared Error: {mse}, Root Mean Squared Error: {rmse}"
     return results
 
-    def _arun():
-        return NotImplementedError
+
+def get_current_timestamp():
+    # Get the current time
+    now = datetime.now()
+    
+    # Format the current time as yyyyMMddHHmmss
+    current_timestamp = now.strftime('%Y%m%d%H%M%S')
+    
+    return current_timestamp
