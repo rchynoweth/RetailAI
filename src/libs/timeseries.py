@@ -31,7 +31,7 @@ class ForecastTool(BaseTool):
         """Generates a forecast and image to display 
 
         Returns:
-            tuple: The first index is a pandas dataframe or results and the second index is an image. 
+            str: returns a text description of the forecast. The image of the forecast is saved to the assets folder for display. 
         """
         logger.info("Generating Forecast.")
         # file was uploaded and saved to this location

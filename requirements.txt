@@ -6,3 +6,5 @@ numpy==1.23.5
 langchain==0.2.6
 langchain-community==0.2.6
 mlflow==2.14.2
+pillow==10.2.0
+databricks-sql-connector==3.1.1

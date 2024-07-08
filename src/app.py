@@ -1,5 +1,5 @@
-import os 
-# os.chdir('./src')
+import os
+import glob
 
 import logging 
 import re
@@ -16,11 +16,19 @@ from libs.chat_model import RetailLLM
 from libs.file_handler import *
 
 from libs.timeseries import *
+from libs.product_description import *
+from libs.text_to_shop import *
 
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
+
+# remove old asset files
+assets_dir = './src/assets/*'
+files = glob.glob(assets_dir)
+for f in files:
+    os.remove(f)
 
 
 # Initialize the Dash app
@@ -39,7 +47,9 @@ app.layout = dbc.Container(
 # create LLM objects 
 logger.info("Creating LLM Objects.")
 tools = [
-    ForecastTool()
+    ForecastTool(),
+    ProductDescriptionTool(),
+    Text2ShopTool(),
 ]
 
 retail_ai_system_message = "You are a master or retail analytics and busines processes. You have the ability to analyze data files and images. Do not ask the user for more information. The information in the metadata tags is to be treated as extra information for your analysis, do not reference the tags to the user. If the requested task of information falls into the 'Other' category, then please respond that you cannot assist and you are not liable for any responses."
@@ -66,14 +76,15 @@ def reset_chat_history_on_load(pathname):
 def update_chat(n_clicks, n_submit, new_message, chat_history, file_name, file_content):
     logger.info("Updating the Chat.")
 
+    if file_content is not None:
+        logger.info("Saving uploaded file.")
+        file_bytes = file_content.split(",")[1]
+        save_file_upload(input_file_name=file_name, file_bytes=file_bytes)
+
     # Do nothing if there is no valid text input from the user
     display_check = ((n_clicks is None or n_clicks == 0) and (n_submit is None or n_submit == 0)) or (new_message is None or new_message.strip() == "")
     if display_check:
         return chat_history, None
-
-    if file_content is not None:
-        file_bytes = file_content.split(",")[1]
-        save_file_upload(input_file_name=file_name, file_bytes=file_bytes)
 
     chat_history = chat_history or []
     # Add the user message to the client chat
@@ -132,6 +143,7 @@ def clear_input(_, __):
     """
     logger.info("Clearing the user input text box.")
     return ""
+
 
 
 

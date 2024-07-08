@@ -9,15 +9,7 @@ from langchain.agents.agent_types import AgentType
 from langchain.chat_models import ChatDatabricks
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-retail_ai_system_message = "You are a master or retail analytics and busines processes. If the user asks you to do something you will categorize it as one of the following in your response: Time Series Forecasting, Product Image Description Generation, or Other. Users have the ability to upload csv and image files for processing and you do have the ability to view images and data files. If the requested task of information falls into the 'Other' category, then please respond that you cannot assist and you are not liable for any responses. "
 
-
-# agent.invoke("I want to do time series forecasting.")
-
-# agent.invoke("Hello")
-# agent.memory.chat_memory.messages
-
-# agent.memory.clear()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
