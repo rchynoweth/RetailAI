@@ -1,34 +1,15 @@
 # Databricks notebook source
-# MAGIC %md The purpose of this notebook is to extract descriptions from images as part of  with the Product Description Generation solution accelerator.  This notebook was developed on a **Databricks ML 14.3 LTS GPU-enabled** cluster with Standard_NC24ads_A100_v4. 
-
-# COMMAND ----------
-
 # MAGIC %md ##Introduction
 # MAGIC
-# MAGIC In this notebook, we will generate basic descriptions for each of the images read in the prior notebook.  These descriptions will serve as a critical input to our final noteobook.
+# MAGIC In this notebook we will deploy an image to text API to Databricks GPU Model Serving. 
 
 # COMMAND ----------
 
 # MAGIC %pip install transformers
-# MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------
 
-# data_path = "/Volumes/rac_demo_catalog/productcopy_demo/ecomm_product_images/"
-# catalog_name = 'rac_demo_catalog'
-# schema_name = 'productcopy_demo'
-dbutils.widgets.text('data_path', '')
-dbutils.widgets.text('catalog_name', '')
-dbutils.widgets.text('schema_name', '')
-
-data_path = dbutils.widgets.get('data_path')
-catalog_name = dbutils.widgets.get('catalog_name')
-schema_name = dbutils.widgets.get('schema_name')
-
-# COMMAND ----------
-
-spark.sql(f"use catalog {catalog_name}")
-spark.sql(f"use schema {schema_name}")
+dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -52,113 +33,9 @@ mlflow.set_registry_uri('databricks-uc')
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## Test Image to Text Process 
-# MAGIC
-# MAGIC We will then install the Salesforce/instructblip-flan-t5-xl model which has been trained with image and text description data to associate image structures with text:
-# MAGIC
-# MAGIC
-
-# COMMAND ----------
-
-cnt = spark.sql(f""" 
-          select * 
-          from {catalog_name}.information_schema.tables
-          where table_catalog = '{catalog_name}' and table_schema = '{schema_name}' and table_name = 'product_images'
-          limit 10
-          """).count()
-
-if cnt > 0:
-  # read jpg image files
-  images = (
-    spark
-      .read
-      .format("binaryFile") # read file contents as binary
-      .option("recursiveFileLookup", "true") # recursive navigation of folder structures
-      .option("pathGlobFilter", "*.jpg") # read only files with jpg extension
-      .load(f"{data_path}/data") # starting point for accessing files
-    )
-
-  # write images to persisted table
-  _ = (
-    images
-      .write
-      .mode("overwrite")
-      .format("delta")
-      .saveAsTable("product_images")
-  )
-
-# display data in table
-display(
-  spark
-    .read
-    .table("product_images")
-    .limit(10)
-    )
-
-# COMMAND ----------
-
-image = (
-  spark.read
-    .table('product_images')
-    .select('path','content')
-    .limit(1)
-).collect()[0]
-
-image
-
-# COMMAND ----------
-
 # Load the appropriate model from transformers into context. We also need to tell it what kind of device to use.
 model = InstructBlipForConditionalGeneration.from_pretrained("Salesforce/instructblip-flan-t5-xl")
 processor = InstructBlipProcessor.from_pretrained("Salesforce/instructblip-flan-t5-xl", load_in_8bit=True, cache_dir='processor_cache')
-
-# COMMAND ----------
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
-
-# COMMAND ----------
-
-# Function to accept the binary contents of an image and extract from it a text description
-
-def get_description(img):
-  "Convert an image binary and generate a description"
-  image = Image.open(BytesIO(img)) # This loads the image from the binary type into a format the model understands.
-
-  # Additional prompt engineering represents one of the easiest areas to experiment with the underlying model behavior.
-  prompt = "Describe the image using tags from the fashion industry? Mention style and type. Please be concise"
-  inputs = processor(images=image, text=prompt, return_tensors="pt").to(device)
-
-  gen_conf = GenerationConfig.from_model_config(model.config)
-
-  # Model parameters can be tuned as desired.
-  outputs = model.generate(
-          **inputs,
-          do_sample=True,
-          num_beams=5,
-          max_length=256,
-          min_length=1,
-          top_p=0.9,
-          repetition_penalty=1.5,
-          length_penalty=1.0,
-          temperature=1,
-          generation_config=gen_conf
-  )
-  # We need to decode the outputs from the model back to a string format.
-  generated_text = processor.batch_decode(outputs, skip_special_tokens=True)[0].strip()
-  return(generated_text)
-
-# COMMAND ----------
-
-# get description
-description = get_description(image[1])
-
-# # print discription and display image
-# print(
-#   Image.open(BytesIO(image['content']))
-#   )
-print(description)
 
 # COMMAND ----------
 
@@ -188,6 +65,7 @@ class ImageToTextModel(mlflow.pyfunc.PythonModel):
     import base64
     import requests
     import warnings
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"---------------- Model Input: {model_input}",flush=True)
     print(f"---------------- Model Type: {type(model_input)}", flush=True)
 
@@ -223,7 +101,7 @@ class ImageToTextModel(mlflow.pyfunc.PythonModel):
         temperature=1,
         generation_config=gen_conf,
       )
-      print(f"---------------- Outputs set")
+      print(f"---------------- Outputs set", flush=True)
       generated_text = processor.batch_decode(outputs, skip_special_tokens=True)[0].strip()
       print(f"---------------- Generated Text", flush=True)
       return(generated_text)
@@ -233,10 +111,6 @@ class ImageToTextModel(mlflow.pyfunc.PythonModel):
 
 
 
-
-# COMMAND ----------
-
-# maybe add an evaluation table here to compare the different descriptions. "MLflow Evaluation" for reference code. 
 
 # COMMAND ----------
 
@@ -278,6 +152,8 @@ client = get_deploy_client("databricks")
 # COMMAND ----------
 
 model_name = "rac_image_to_text_model"
+catalog_name = 'rac_demo_catalog'
+schema_name = 'productcopy_demo'
 full_model_name = f"{catalog_name}.{schema_name}.{model_name}"
 model_version = reg.version
 endpoint_name = "rac_image_endpoint"
@@ -300,7 +176,7 @@ endpoint_config = {
                   "entity_version": model_version,
                   "workload_size": "Small",
                   "workload_type": "GPU_LARGE",
-                  "scale_to_zero_enabled": False,
+                  "scale_to_zero_enabled": True,
               }
           ],
           "auto_capture_config": {
@@ -331,6 +207,3 @@ else :
     endpoint=endpoint_name,
     config=endpoint_config,
     )
-
-# COMMAND ----------
-
