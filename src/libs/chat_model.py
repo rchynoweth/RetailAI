@@ -1,18 +1,14 @@
-
 import os
 import logging
 from dotenv import load_dotenv
 
-from langchain.agents import create_tool_calling_agent, initialize_agent
+from langchain.agents import initialize_agent
 from langchain.memory import ConversationBufferMemory
 from langchain.agents.agent_types import AgentType
 from langchain.chat_models import ChatDatabricks
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 
 
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
 
 
 class RetailLLM():
@@ -40,8 +36,9 @@ class RetailLLM():
             max_iterations=3,
             memory=memory,
         )
+
         self.reset_chat_history()
-        logger.info("----- Retail LLM Class Initialized. ")
+        self.logger.info("----- Retail LLM Class Initialized. ")
         
 
     
@@ -80,14 +77,6 @@ class RetailLLM():
         response = self.agent.invoke(msg)
         self.logger.info("AI Response: %s", response.get('output'))
 
-        # trimmer = trim_messages(
-        # max_tokens=65,
-        # strategy="last",
-        # token_counter=model,
-        # include_system=True,
-        # allow_partial=False,
-        # start_on="human",
-        # )
         return response.get('output')
 
     def get_chat_history(self):

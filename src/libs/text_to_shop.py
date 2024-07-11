@@ -1,16 +1,11 @@
-import requests
-import json
 from dotenv import load_dotenv
 import logging
 import os 
-from typing import Union, Dict, Tuple
-import base64
-from databricks import sql 
-
-
 
 from langchain.tools import BaseTool
-
+import libs.cart as cart
+import libs.db_sql as dbsql
+from libs.foundation_api import call_foundation_model
 
 
 load_dotenv()
@@ -20,53 +15,79 @@ logger = logging.getLogger()
 
 class Text2ShopTool(BaseTool):
     name = "Text to shop Tool"
-    description = "use this tool shop for items when a user requests it."
+    description = "use this tool to help customers shop for items. They will likely provide items they want to buy or purchase or want. "
 
-    def _to_args_and_kwargs(self, tool_input: Union[str, Dict]) -> Tuple[Tuple, Dict]:
-        return (), {}
+    # def _to_args_and_kwargs(self, tool_input: Union[str, Dict]) -> Tuple[Tuple, Dict]:
+    #     return (), {}
 
-    def _run(self, product_name):
+    def _run(self, product_name, quantity):
         """Searches available products based on user input and returns the available product that can be added to the cart. 
 
         Args:
-            product_name (str): The user's inputted product that they are looking for. 
+            product_name (str): The product the user requested. 
+            qty (str): The number of units that the user is asking for. 
 
         Returns:
             str: The Name as listed in the catalog
         """
         logger.info("Searching products for %s", product_name)
 
-        product_table_name = "rac_demo_catalog.rac_demo_db.groceries"
+        product_table_name = "rac_demo_catalog.rac_demo_db.product_catalog"
+        try:
+            qty = quantity.get('title') 
+        except: 
+            qty = quantity
 
-        # title = product_name.get('title')
+        try: 
+            prd_name = product_name.get('title') 
+        except:
+            prd_name = product_name
 
+        qty = 1 if qty is None else qty
+
+        # get the item that the user requested and add it to the cart. 
         qry = f"""
-            select name, id, description
+            select name, id, description, company_name
             from {product_table_name}
-            order by ai_similarity(name, '{product_name}') desc
+            order by ai_similarity(name, '{prd_name}') desc
             limit 1
             """
         
-        logger.info("Executing Similarity Query - %s", qry)
-
-        results = execute_query(query=qry)
-
-        out = [{'product_name': r.product_name, 'manufacturer': r.manufacturer, 'price': r.price, 'description': r.description} for r in results]
-
-        return out
-
-
-def execute_query(query):
-    dbtoken = os.getenv('DATABRICKS_TOKEN')
-    server_hostname = os.getenv('DATABRICKS_WORKSPACE')
-    http_path = os.getenv('WAREHOUSE_HTTP_PATH')
-
-    with sql.connect(server_hostname=server_hostname, 
-                    http_path=http_path, 
-                    access_token=dbtoken) as connection:
+        vector_qry = f"""
+            select name, id, description, company_name
+            from {product_table_name}
+            order by ai_similarity(name, '{prd_name}') desc
+            limit 1
+            """
         
-        with connection.cursor() as cursor:
-            cursor.execute(query)
-            result = cursor.fetchall()
+        results = dbsql.execute_query(query=qry)
+        out = [{'name': r.name, 'id': r.id, 'description': r.description, 'company_name': r.company_name, 'quantity': qty } for r in results]
+        cart.add_item(out[0])
 
-    return result
+        rec_item = call_foundation_model(
+            system_msg="You are going to recieve user input information from another conversation related to items they are purchasing. Please recommend a single additional item they may be interested in. You should respond with a single word and do not use punctuation. Provide only a product name and nothing else.",
+            user_msg=f"The user is requesting to purchase the following prd_name. Please recommend a product we can upsell and only produce a 1 to 2 words. No punctuation."
+        ).get('choices')[0].get('message').get('content').split(" ")[0].replace("\n", "")
+        logger.info("Raw Recommendation: %s", rec_item)
+        
+
+        recommendation_query = f"""
+            select name
+            from {product_table_name}
+            order by ai_similarity(name, '{rec_item}') desc
+            limit 3
+        """
+        product_recommendations = dbsql.execute_query(query=recommendation_query)
+        recs = [{'name': r.name } for r in product_recommendations]
+
+
+
+        tool_response = f"""
+        We have automatically added the following to the customer's cart: {out}. \n
+        Please recommend the following items: {recs}
+        """
+
+        return tool_response
+
+
+

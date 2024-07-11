@@ -2,7 +2,7 @@ import os
 import logging
 import pandas as pd
 from io import StringIO, BytesIO
-
+from datetime import datetime
 import base64
 from PIL import Image
 
@@ -59,3 +59,13 @@ def save_file_upload(input_file_name, file_bytes, output_file_path='/tmp'):
         image.save(f'/tmp/product_image.png')
         image.close()
         logger.info("Uploaded image saved.")
+
+
+def get_current_timestamp():
+    # Get the current time
+    now = datetime.now()
+    
+    # Format the current time as yyyyMMddHHmmss
+    current_timestamp = now.strftime('%Y%m%d%H%M%S')
+    
+    return current_timestamp
