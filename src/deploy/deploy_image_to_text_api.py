@@ -176,7 +176,7 @@ endpoint_config = {
                   "entity_version": model_version,
                   "workload_size": "Small",
                   "workload_type": "GPU_LARGE",
-                  "scale_to_zero_enabled": True,
+                  "scale_to_zero_enabled": False,
               }
           ],
           "auto_capture_config": {
@@ -197,6 +197,7 @@ endpoint_config = {
 # COMMAND ----------
 
 if endpoint_exists == False:
+  spark.sql("drop table if exists rac_demo_catalog.productcopy_demo.rac_image_to_text_model_payload")
   endpoint = client.create_endpoint(
       name=endpoint_name,
       config=endpoint_config,
